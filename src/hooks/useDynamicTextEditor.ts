@@ -12,6 +12,7 @@ type ToolbarConfig = Array<
 type useDynamicTextEditorProps = {
     theme?: 'snow' | 'bubble';
     placeholder?: string;
+    classNames?:Object;
     value?: string;
     defaultValue?: string;
     readOnly?: boolean;
