@@ -3,7 +3,7 @@ import { useDynamicTextEditor } from "../hooks/useDynamicTextEditor";
 import type { DynamicTextEditorProps, DynamicTextEditorRef, BaseEditorItem } from "../types";
 import "quill/dist/quill.snow.css";
 import "quill/dist/quill.bubble.css";
-import "../../styles/editor.css";
+import "../styles/editor.css";
 
 const DefaultSuggestionItem = ({ item, isSelected }: { item: BaseEditorItem; isSelected: boolean }) => (
     <div
