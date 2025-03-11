@@ -51,7 +51,7 @@ interface SuggestionState {
 const defaultToolbarOptions: ToolbarConfig = [
     ['bold', 'italic', 'underline'],
     ['blockquote', 'code-block'],
-    [{ 'header': [1, 2, false] }],
+    [{ 'header': [1, 2] }],
     [{ 'list': 'ordered' }, { 'list': 'bullet' }],
     [{ 'align': [] }],
     ['clean']

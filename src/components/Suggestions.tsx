@@ -50,7 +50,9 @@ export const Suggestions: React.FC<SuggestionsProps> = ({
     maxWidth = 400
 }) => {
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const selectedItemRef = useRef<HTMLDivElement>(null);
 
+    // Handle viewport positioning
     useEffect(() => {
         if (!isOpen || !dropdownRef.current) return;
 
@@ -70,6 +72,16 @@ export const Suggestions: React.FC<SuggestionsProps> = ({
             dropdown.style.left = `${viewportWidth - rect.width - 10}px`;
         }
     }, [isOpen, position]);
+
+    // Handle selected item scrolling
+    useEffect(() => {
+        if (!isOpen || !selectedItemRef.current) return;
+
+        selectedItemRef.current.scrollIntoView({
+            block: 'nearest',
+            behavior: 'smooth'
+        });
+    }, [isOpen, selectedIndex]);
 
     const handleItemClick = useCallback((item: BaseEditorItem, event: React.MouseEvent) => {
         event.preventDefault();
@@ -104,11 +116,17 @@ export const Suggestions: React.FC<SuggestionsProps> = ({
             {items.map((item, index) => (
                 <div
                     key={item.id}
+                    ref={index === selectedIndex ? selectedItemRef : null}
                     onMouseDown={(e) => handleItemClick(item, e)}
                     className={`suggestion-item ${classNames?.suggestion || ''} ${index === selectedIndex ? classNames?.suggestionSelected || '' : ''
                         }`}
                     style={{
-                        transition: 'background-color 0.2s ease'
+                        transition: 'background-color 0.2s ease',
+                        padding: '8px 12px',
+                        cursor: 'pointer',
+                        backgroundColor: index === selectedIndex ? '#f0f9ff' : 'transparent',
+                        borderBottom: '1px solid #eee',
+                        userSelect: 'none'
                     }}
                 >
                     {renderItem ? (

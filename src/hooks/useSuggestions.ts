@@ -147,27 +147,39 @@ export const useSuggestions = ({
                 e.preventDefault();
                 setState(prev => ({
                     ...prev,
-                    selectedIndex: (prev.selectedIndex + 1) % prev.filteredItems.length
+                    selectedIndex: prev.selectedIndex >= prev.filteredItems.length - 1
+                        ? prev.filteredItems.length - 1
+                        : prev.selectedIndex + 1
                 }));
                 break;
+
             case 'ArrowUp':
                 e.preventDefault();
                 setState(prev => ({
                     ...prev,
-                    selectedIndex:
-                        (prev.selectedIndex - 1 + prev.filteredItems.length) %
-                        prev.filteredItems.length
+                    selectedIndex: prev.selectedIndex <= 0 ? 0 : prev.selectedIndex - 1
                 }));
                 break;
+
             case 'Enter':
                 e.preventDefault();
                 if (state.filteredItems[state.selectedIndex]) {
                     insertSuggestion(state.filteredItems[state.selectedIndex]);
+                    setState(prev => ({ ...prev, isOpen: false }));
                 }
                 break;
+
             case 'Escape':
                 e.preventDefault();
                 setState(prev => ({ ...prev, isOpen: false }));
+                break;
+
+            case 'Tab':
+                e.preventDefault();
+                if (state.filteredItems[state.selectedIndex]) {
+                    insertSuggestion(state.filteredItems[state.selectedIndex]);
+                    setState(prev => ({ ...prev, isOpen: false }));
+                }
                 break;
         }
     }, [state.isOpen, state.filteredItems, state.selectedIndex, insertSuggestion]);
