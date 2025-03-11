@@ -23,13 +23,6 @@ const App = () => {
   const [content, setContent] = useState<string>('');
   const editorRef = useRef<DynamicTextEditorRef>(null);
 
-  const handleFocus = () => {
-    console.log('Editor focused');
-  };
-
-  const handleBlur = () => {
-    console.log('Editor blurred');
-  };
 
   return (
     <div className="app-container">
@@ -44,12 +37,9 @@ const App = () => {
           fontSize="1.8rem"
           lineHeight="1.6"
           toolbar={[
-            ['bold', 'italic', 'underline'],
-            [{ 'header': [1, 2, false] }],
-            ['clean']
+            ['bold', 'italic',],
+
           ]}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
           suggestions={defaultSuggestions}
           renderItem={renderCustomItem}
           classNames={{

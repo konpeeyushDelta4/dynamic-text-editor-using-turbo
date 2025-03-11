@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import Quill from 'quill';
 
 export interface BaseEditorItem {
-    id: string|number;
+    id: string | number;
     label: string;
     value: string;
     description?: string;
@@ -60,4 +60,19 @@ export interface DynamicTextEditorRef {
     containerRef: HTMLDivElement | null;
 }
 
-export type ToolbarConfig = Array<string[] | { [key: string]: any }[]>; 
+export type ToolbarConfig = Array<
+    | string[]
+    | Array<{
+        header?: number[] | number | false;
+        align?: string[];
+        list?: string;
+        script?: string;
+        indent?: string;
+        direction?: string;
+        size?: string;
+        color?: string;
+        background?: string;
+        font?: string;
+        code?: string;
+    }>
+>; 

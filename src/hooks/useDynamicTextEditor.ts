@@ -1,18 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import Quill from 'quill';
-import 'quill/dist/quill.snow.css';
-import 'quill/dist/quill.bubble.css';
 import { DynamicTextEditorProps, BaseEditorItem } from '../types';
+import { useSuggestions } from './useSuggestions';
+import usePaint from './usePaint';
+import useQuill from './useQuill';
+import Quill from 'quill';
 
-type ToolbarConfig = Array<
-    | string[]
-    | { [key: string]: any }[]
->;
+import { ToolbarConfig } from '../types';
 
 type useDynamicTextEditorProps = {
     theme?: 'snow' | 'bubble';
     placeholder?: string;
-    classNames?:Object;
+    classNames?: object;
     value?: string;
     defaultValue?: string;
     readOnly?: boolean;
@@ -28,9 +26,6 @@ type useDynamicTextEditorProps = {
     suggestions: BaseEditorItem[];
     suggestionTrigger?: string;
     suggestionClosing?: string;
-    minSuggestionWidth?: number;
-    maxSuggestionWidth?: number;
-    maxSuggestionHeight?: number;
 };
 
 type useDynamicTextEditorReturn = {
@@ -48,14 +43,15 @@ type useDynamicTextEditorReturn = {
 interface SuggestionState {
     isOpen: boolean;
     items: BaseEditorItem[];
+    filteredItems: BaseEditorItem[];
     selectedIndex: number;
     triggerPosition: { top: number; left: number };
 }
 
-const defaultToolbarOptions = [
+const defaultToolbarOptions: ToolbarConfig = [
     ['bold', 'italic', 'underline'],
     ['blockquote', 'code-block'],
-    [{ 'header': 1 }, { 'header': 2 }],
+    [{ 'header': [1, 2, false] }],
     [{ 'list': 'ordered' }, { 'list': 'bullet' }],
     [{ 'align': [] }],
     ['clean']
@@ -72,178 +68,159 @@ export const useDynamicTextEditor = ({
     width = '100%',
     height = 'auto',
     toolbar = true,
-    formats = [],
+    formats = ['bold', 'italic', 'underline', 'blockquote', 'code-block', 'header', 'list', 'align'],
     onChange,
     onFocus,
     onBlur,
     suggestions,
     suggestionTrigger = '{{',
-    suggestionClosing = '}}',
-    minSuggestionWidth = 200,
-    maxSuggestionWidth = 400,
-    maxSuggestionHeight = 300
+    suggestionClosing = '}}'
 }: DynamicTextEditorProps): useDynamicTextEditorReturn => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const [quillInstance, setQuillInstance] = useState<Quill | null>(null);
     const [editorState, setEditorState] = useState<string>(defaultValue);
-    const [suggestionState, setSuggestionState] = useState<SuggestionState>({
-        isOpen: false,
-        items: [],
-        selectedIndex: 0,
-        triggerPosition: { top: 0, left: 0 }
+    const prevToolbarRef = useRef(toolbar);
+
+    // Handle text change events
+    const handleTextChange = useCallback((html: string) => {
+        setEditorState(html);
+        onChange?.(html);
+    }, [onChange]);
+
+    // Initialize Quill using our useQuill hook
+    const {
+        quill: quillInstance,
+        setContent,
+        clearContent,
+        reinitialize
+    } = useQuill({
+        container: containerRef,
+        theme,
+        placeholder,
+        readOnly,
+        formats: [...formats, 'template-variable'],
+        toolbar: toolbar === true ? defaultToolbarOptions : toolbar,
+        defaultValue: value || defaultValue,
+        onTextChange: handleTextChange
     });
 
-    const handleTextChange = useCallback((delta: any, oldContents: any, source: string) => {
-        if (!quillInstance || source !== 'user') return;
+    // Use the suggestions hook
+    const {
+        suggestionState,
+        insertSuggestion: insertSuggestionFromHook
+    } = useSuggestions({
+        quillInstance,
+        suggestions,
+        trigger: suggestionTrigger,
+        closingChar: suggestionClosing
+    });
 
-        const text = quillInstance.getText();
-        const cursorPosition = quillInstance.getSelection()?.index;
+    // Use the template highlighting hook
+    const { highlightTemplates } = usePaint({
+        quillInstance,
+        trigger: suggestionTrigger,
+        closingChar: suggestionClosing
+    });
 
-        if (cursorPosition === undefined) return;
-
-        // Check for trigger character
-        const lastTwoChars = text.slice(Math.max(0, cursorPosition - 2), cursorPosition);
-
-        if (lastTwoChars === suggestionTrigger) {
-            const bounds = quillInstance.getBounds(cursorPosition);
-            if (!bounds) return;
-
-            setSuggestionState({
-                isOpen: true,
-                items: suggestions,
-                selectedIndex: 0,
-                triggerPosition: {
-                    top: bounds.top + bounds.height,
-                    left: bounds.left
-                }
-            });
-        } else if (!text.includes(suggestionTrigger)) {
-            setSuggestionState(prev => ({ ...prev, isOpen: false }));
-        }
-
-        onChange(quillInstance.root.innerHTML);
-    }, [quillInstance, onChange, suggestions, suggestionTrigger]);
-
-    const insertSuggestion = useCallback((item: BaseEditorItem) => {
-        if (!quillInstance) return;
-
-        const selection = quillInstance.getSelection();
-        if (!selection) return;
-
-        // Delete the trigger characters
-        quillInstance.deleteText(selection.index - suggestionTrigger.length, suggestionTrigger.length);
-        // Insert the suggestion value
-        quillInstance.insertText(selection.index - suggestionTrigger.length, item.value);
-        setSuggestionState(prev => ({ ...prev, isOpen: false }));
-    }, [quillInstance, suggestionTrigger]);
-
-    // Initialize Quill
-    useEffect(() => {
-        if (!containerRef.current || quillInstance) return;
-
-        containerRef.current.innerHTML = '<div class="editor-content"></div>';
-        const editorElement = containerRef.current.querySelector('.editor-content');
-
-        const quill = new Quill(editorElement as HTMLElement, {
-            theme,
-            placeholder,
-            readOnly,
-            modules: {
-                ...(toolbar !== false && {
-                    toolbar: toolbar === true ? defaultToolbarOptions : toolbar
-                }),
-                history: {
-                    userOnly: true
-                }
-            },
-            formats: formats.length > 0 ? formats : undefined
-        });
-
-        // Apply styles
-        quill.root.style.fontSize = fontSize;
-        quill.root.style.lineHeight = lineHeight;
-        quill.root.style.width = width;
-        quill.root.style.height = height;
-
-        // Set initial content
-        if (value) {
-            quill.clipboard.dangerouslyPasteHTML(value);
-        } else if (defaultValue) {
-            quill.clipboard.dangerouslyPasteHTML(defaultValue);
-        }
-
-        setQuillInstance(quill);
-
-        // Event listeners
-        quill.on('text-change', handleTextChange);
-        quill.root.addEventListener('focus', onFocus || (() => { }));
-        quill.root.addEventListener('blur', onBlur || (() => { }));
-
-        return () => {
-            quill.off('text-change', handleTextChange);
-            quill.root.removeEventListener('focus', onFocus || (() => { }));
-            quill.root.removeEventListener('blur', onBlur || (() => { }));
-            quill.disable();
-            if (containerRef.current) {
-                containerRef.current.innerHTML = '';
-            }
-            setQuillInstance(null);
-        };
-    }, []);
-
-    // Handle prop changes after initial mount
+    // Apply custom styles to Quill
     useEffect(() => {
         if (!quillInstance) return;
 
-        // Update styles
         quillInstance.root.style.fontSize = fontSize;
         quillInstance.root.style.lineHeight = lineHeight;
         quillInstance.root.style.width = width;
         quillInstance.root.style.height = height;
+    }, [quillInstance, fontSize, lineHeight, width, height]);
 
-        // Update readOnly state
-        quillInstance.enable(!readOnly);
+    // Add event listeners for focus/blur
+    useEffect(() => {
+        if (!quillInstance) return;
 
-        // Reinitialize Quill if toolbar changes
-        if (toolbar !== undefined && containerRef.current) {
-            const content = quillInstance.root.innerHTML;
-            quillInstance.disable();
-            containerRef.current.innerHTML = '<div class="editor-content"></div>';
-            const editorElement = containerRef.current.querySelector('.editor-content');
-
-            const newQuill = new Quill(editorElement as HTMLElement, {
-                theme,
-                placeholder,
-                readOnly,
-                modules: {
-                    ...(toolbar !== false && {
-                        toolbar: toolbar === true ? defaultToolbarOptions : toolbar
-                    }),
-                    history: {
-                        userOnly: true
-                    }
-                },
-                formats: formats.length > 0 ? formats : undefined
-            });
-
-            newQuill.clipboard.dangerouslyPasteHTML(content);
-            setQuillInstance(newQuill);
+        if (onFocus) {
+            quillInstance.root.addEventListener('focus', onFocus);
         }
-    }, [theme, fontSize, lineHeight, width, height, readOnly, toolbar]);
 
-    // Handle value changes separately
+        if (onBlur) {
+            quillInstance.root.addEventListener('blur', onBlur);
+        }
+
+        return () => {
+            if (onFocus) {
+                quillInstance.root.removeEventListener('focus', onFocus);
+            }
+
+            if (onBlur) {
+                quillInstance.root.removeEventListener('blur', onBlur);
+            }
+        };
+    }, [quillInstance, onFocus, onBlur]);
+
+    // Handle toolbar changes
+    useEffect(() => {
+        if (!quillInstance) return;
+
+        // Only reinitialize if toolbar actually changed
+        const toolbarChanged = JSON.stringify(prevToolbarRef.current) !== JSON.stringify(toolbar);
+        prevToolbarRef.current = toolbar;
+
+        if (!toolbarChanged) return;
+
+        // Store selection and focus state for restoration
+        const wasFocused = document.activeElement === quillInstance.root;
+        const selection = quillInstance.getSelection();
+        const content = quillInstance.root.innerHTML;
+
+        // Use our reinitialize method from useQuill
+        reinitialize();
+
+        // Use setTimeout to ensure the editor is fully reinitialized
+        setTimeout(() => {
+            if (!quillInstance) return;
+
+            // Restore content
+            setContent(content);
+
+            // Restore focus and selection
+            if (wasFocused) {
+                quillInstance.focus();
+                if (selection) {
+                    quillInstance.setSelection(selection.index, selection.length);
+                }
+            }
+
+            // Highlight templates
+            highlightTemplates();
+        }, 10);
+    }, [toolbar, quillInstance, reinitialize, setContent, highlightTemplates]);
+
+    // Handle value changes from props
     useEffect(() => {
         if (!quillInstance || value === undefined) return;
-        if (value !== quillInstance.root.innerHTML) {
-            quillInstance.clipboard.dangerouslyPasteHTML(value);
+
+        const currentContent = quillInstance.root.innerHTML;
+        if (value !== currentContent) {
+            setContent(value);
+            highlightTemplates();
         }
-    }, [value]);
+    }, [value, quillInstance, setContent, highlightTemplates]);
+
+    // Add CSS for template formatting
+    useEffect(() => {
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .template-variable {
+            background-color: #e8f4ff;
+            border-radius: 3px;
+            padding: 2px 0;
+            font-weight: 500;
+            }`;
+        document.head.appendChild(style);
+
+        return () => {
+            document.head.removeChild(style);
+        };
+    }, []);
 
     // Utility functions
-    const clearContent = useCallback(() => {
-        quillInstance?.setText('');
-    }, [quillInstance]);
-
     const focus = useCallback(() => {
         quillInstance?.focus();
     }, [quillInstance]);
@@ -254,16 +231,24 @@ export const useDynamicTextEditor = ({
         }
     }, [quillInstance]);
 
+    // Modified wrapper for insertSuggestion
+    const insertSuggestion = useCallback((item: BaseEditorItem) => {
+        insertSuggestionFromHook(item);
+        setTimeout(highlightTemplates, 0); // Re-highlight after insertion
+    }, [insertSuggestionFromHook, highlightTemplates]);
+
     return {
         quillRef: containerRef,
         quillInstance,
         editorState,
         setEditorState: (content: string) => {
-            if (quillInstance) {
-                quillInstance.clipboard.dangerouslyPasteHTML(content);
-            }
+            setContent(content);
+            highlightTemplates();
         },
-        clearContent,
+        clearContent: () => {
+            clearContent();
+            highlightTemplates();
+        },
         focus,
         blur,
         suggestionState,
