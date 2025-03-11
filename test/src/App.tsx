@@ -149,7 +149,7 @@ const InstructionsSection = () => (
 );
 
 const App = () => {
-  const [content, setContent] = useState<string>('Hello {{VISITOR.name}}, welcome to {{CONTACT.company}}!');
+  const [content, setContent] = useState<string>('Hello {{VISITOR.name}}, *welcome* to {{CONTACT.company}}!');
   const editorRef = useRef<DynamicTextEditorRef>(null);
 
   return (
