@@ -190,12 +190,7 @@ const App = () => {
           >
             Clear
           </button>
-          <button
-            onClick={() => editorRef.current?.focus()}
-            className="editor-button"
-          >
-            Focus
-          </button>
+
         </div>
         <InstructionsSection />
       </div>
