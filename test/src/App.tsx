@@ -182,7 +182,7 @@ const App = () => {
             description: "custom-editor__description",
           }}
         />
-        
+
         <div className="editor-controls">
           <button
             onClick={() => editorRef.current?.clearContent()}
@@ -197,7 +197,7 @@ const App = () => {
             Focus
           </button>
         </div>
-          <InstructionsSection />
+        <InstructionsSection />
       </div>
     </div>
   );

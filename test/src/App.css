@@ -143,3 +143,80 @@
     color: #4a5568;
     font-size: 0.9rem;
 }
+
+
+.shortcut-group {
+    padding-right: 16px;
+}
+
+.shortcut-group h4 {
+    margin: 0 0 12px 0;
+    color: #334155;
+    font-size: 1rem;
+}
+
+.shortcut-group ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.shortcut-group li {
+    margin-bottom: 8px;
+    color: #475569;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.shortcut-group code {
+    background: #fff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+    font-family: monospace;
+    font-size: 0.9em;
+    color: #0066cc;
+}
+
+/* Style updates for better Markdown support */
+.custom-editor .ql-editor pre {
+    background: #f8fafc;
+    border-radius: 6px;
+    padding: 16px;
+    margin: 8px 0;
+    font-family: monospace;
+}
+
+.custom-editor .ql-editor code {
+    background: #f1f5f9;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: monospace;
+    color: #0066cc;
+}
+
+.custom-editor .ql-editor blockquote {
+    border-left: 4px solid #e2e8f0;
+    padding-left: 16px;
+    color: #475569;
+    margin: 8px 0;
+}
+
+.custom-editor .ql-editor h1,
+.custom-editor .ql-editor h2,
+.custom-editor .ql-editor h3 {
+    margin: 16px 0 8px;
+    color: #1a1a1a;
+}
+
+.custom-editor .ql-editor ul,
+.custom-editor .ql-editor ol {
+    padding-left: 24px;
+    margin: 8px 0;
+}
+
+.custom-editor .ql-editor li {
+    margin-bottom: 4px;
+}
