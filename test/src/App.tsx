@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { DynamicTextEditor } from 'dynamic-text-editor';
 import type { DynamicTextEditorRef, BaseEditorItem } from 'dynamic-text-editor';
 import './App.css';
+import './editor-styles.css';
 
 import { defaultSuggestions } from '../utils/constants';
 
@@ -23,7 +24,6 @@ const App = () => {
   const [content, setContent] = useState<string>('');
   const editorRef = useRef<DynamicTextEditorRef>(null);
 
-
   return (
     <div className="app-container">
       <h1>Dynamic Text Editor</h1>
@@ -36,9 +36,10 @@ const App = () => {
           placeholder="Start typing..."
           fontSize="1.8rem"
           lineHeight="1.6"
+          width="800px"
+          height="400px"
           toolbar={[
-            ['bold', 'italic',],
-
+            ['bold', 'italic', 'underline']
           ]}
           suggestions={defaultSuggestions}
           renderItem={renderCustomItem}
@@ -55,10 +56,16 @@ const App = () => {
         />
 
         <div className="editor-controls">
-          <button onClick={() => editorRef.current?.clearContent()}>
+          <button
+            onClick={() => editorRef.current?.clearContent()}
+            className="editor-button"
+          >
             Clear
           </button>
-          <button onClick={() => editorRef.current?.focus()}>
+          <button
+            onClick={() => editorRef.current?.focus()}
+            className="editor-button"
+          >
             Focus
           </button>
         </div>

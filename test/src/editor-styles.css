@@ -1,0 +1,81 @@
+.custom-editor {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin: 20px 0;
+}
+
+.custom-editor__input {
+    min-height: 200px;
+    font-family: 'Arial', sans-serif;
+    padding: 20px;
+}
+
+.custom-editor__variable {
+    background-color: #e8f4ff;
+    border-radius: 4px;
+    padding: 2px 4px;
+    color: #0066cc;
+}
+
+.custom-editor__suggestions {
+    border-radius: 8px;
+    border: none !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+}
+
+.custom-editor__suggestion {
+    border-bottom: 1px solid #eef2f5;
+    padding: 12px 16px !important;
+}
+
+.custom-editor__suggestion:last-child {
+    border-bottom: none;
+}
+
+.custom-editor__suggestion--selected {
+    background-color: #f0f7ff !important;
+}
+
+.custom-editor__category {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+}
+
+.custom-editor__description {
+    font-size: 14px;
+    color: #444;
+    margin-top: 2px;
+}
+
+/* Custom toolbar styles */
+.custom-editor .ql-toolbar {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-color: #e0e0e0;
+    background-color: #f8f9fa;
+}
+
+.custom-editor .ql-container {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-color: #e0e0e0;
+}
+
+/* Custom button styles */
+.custom-editor .ql-toolbar button {
+    width: 32px;
+    height: 32px;
+    margin: 4px;
+}
+
+.custom-editor .ql-toolbar button:hover {
+    background-color: #e9ecef;
+    border-radius: 4px;
+}
+
+/* Active state for toolbar buttons */
+.custom-editor .ql-toolbar button.ql-active {
+    background-color: #e9ecef;
+    border-radius: 4px;
+}
