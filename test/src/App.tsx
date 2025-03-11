@@ -161,11 +161,11 @@ const App = () => {
           theme="snow"
           value={content}
           onChange={setContent}
-          placeholder="Start typing..."
+          placeholder="Start typing in {{ to get dynamic prompt..."
           fontSize="1.8rem"
           lineHeight="1.6"
           width="100%"
-          height="400px"
+          height="12em"
           toolbar={[
             ['bold', 'italic', 'underline']
           ]}

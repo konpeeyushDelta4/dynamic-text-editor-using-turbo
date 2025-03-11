@@ -4,6 +4,7 @@ import { useSuggestions } from './useSuggestions';
 import usePaint from './usePaint';
 import useQuill from './useQuill';
 import Quill from 'quill';
+import useMarkdownShortcuts from './useMarkdownShortcuts';
 
 import { ToolbarConfig } from '../types';
 
@@ -38,6 +39,7 @@ type useDynamicTextEditorReturn = {
     blur: () => void;
     suggestionState: SuggestionState;
     insertSuggestion: (item: BaseEditorItem) => void;
+    processMarkdown: (text: string) => void;
 };
 
 interface SuggestionState {
@@ -102,6 +104,9 @@ export const useDynamicTextEditor = ({
         defaultValue: value || defaultValue,
         onTextChange: handleTextChange
     });
+
+    // Add markdown shortcuts
+    const { processMarkdown } = useMarkdownShortcuts(quillInstance);
 
     // Use the suggestions hook
     const {
@@ -252,7 +257,8 @@ export const useDynamicTextEditor = ({
         focus,
         blur,
         suggestionState,
-        insertSuggestion
+        insertSuggestion,
+        processMarkdown
     };
 };
 
