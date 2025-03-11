@@ -213,10 +213,12 @@ export const useDynamicTextEditor = ({
         const style = document.createElement('style');
         style.innerHTML = `
             .template-variable {
-            background-color: #e8f4ff;
-            border-radius: 3px;
-            padding: 2px 0;
+            background-color: #d0e8ff;
+            color: #0050b3;
+            border-radius: 4px;
+            padding: 2px 4px;
             font-weight: 500;
+            border: 1px solid #b7daff;
             }`;
         document.head.appendChild(style);
 

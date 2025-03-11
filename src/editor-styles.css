@@ -1,0 +1,152 @@
+/* Editor Core Styles */
+.custom-editor {
+    position: relative;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    transition: all 0.3s ease;
+}
+
+.custom-editor:hover {
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Editor Input */
+.custom-editor__input {
+    border: none !important;
+    padding: 20px !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    border-radius: 12px !important;
+    background: transparent !important;
+}
+
+.custom-editor__input .ql-editor {
+    padding: 0 !important;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: #2d3748;
+}
+
+.custom-editor__input .ql-editor:focus {
+    outline: none;
+}
+
+/* Template Variables */
+.custom-editor__variable {
+    background: rgba(0, 102, 204, 0.1);
+    color: #0066cc;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 500;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: 1px solid rgba(0, 102, 204, 0.2);
+    transition: all 0.2s ease;
+}
+
+.custom-editor__variable:hover {
+    background: rgba(0, 102, 204, 0.15);
+    border: 1px solid rgba(0, 102, 204, 0.3);
+}
+
+/* Suggestions Dropdown */
+.custom-editor__suggestions {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+/* Scrollbar Styles */
+.custom-editor__suggestions::-webkit-scrollbar {
+    width: 8px;
+}
+
+.custom-editor__suggestions::-webkit-scrollbar-track {
+    background: rgba(245, 245, 245, 0.5);
+    border-radius: 4px;
+}
+
+.custom-editor__suggestions::-webkit-scrollbar-thumb {
+    background: rgba(204, 204, 204, 0.5);
+    border-radius: 4px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.custom-editor__suggestions::-webkit-scrollbar-thumb:hover {
+    background: rgba(153, 153, 153, 0.5);
+}
+
+/* Individual Suggestion Items */
+.custom-editor__suggestion {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.2s ease;
+    background: transparent;
+}
+
+.custom-editor__suggestion:hover {
+    background: rgba(240, 249, 255, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.custom-editor__suggestion--selected {
+    background: rgba(240, 249, 255, 0.8) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border-left: 3px solid #0066cc !important;
+}
+
+/* Toolbar Styles */
+.custom-editor .ql-toolbar {
+    border-bottom: 1px solid rgba(230, 230, 230, 0.3) !important;
+    padding: 12px 20px !important;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    background: rgba(250, 250, 250, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.custom-editor .ql-toolbar button {
+    width: 32px;
+    height: 32px;
+    margin-right: 8px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(230, 230, 230, 0.3);
+}
+
+.custom-editor .ql-toolbar button:hover {
+    background: rgba(240, 240, 240, 0.8);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.custom-editor .ql-toolbar .ql-active {
+    background: rgba(230, 240, 255, 0.8);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    color: #0066cc;
+    border: 1px solid rgba(0, 102, 204, 0.2);
+}
+
+/* Placeholder style */
+.custom-editor .ql-editor.ql-blank::before {
+    color: rgba(153, 153, 153, 0.8);
+    font-style: normal;
+    font-size: 1rem;
+}
