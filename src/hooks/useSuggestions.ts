@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Quill from 'quill';
 import { BaseEditorItem } from '../types';
 import useRegex from './useRegex';
@@ -34,6 +34,9 @@ export const useSuggestions = ({
         triggerPosition: { top: 0, left: 0 }
     });
 
+    // Create a ref for trigger position tracking
+    const triggerPositionRef = useRef<number | null>(null);
+
     // Create regex for matching {{template}}
     const templateRegex = useRegex(
         new RegExp(`${trigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^${closingChar}]*)${closingChar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'g')
@@ -57,6 +60,9 @@ export const useSuggestions = ({
 
             // Get the editor's position
             const editorRect = quillInstance.root.getBoundingClientRect();
+
+            // Store trigger position for later use
+            triggerPositionRef.current = cursorPosition - trigger.length;
 
             setState(prev => ({
                 ...prev,
@@ -87,6 +93,9 @@ export const useSuggestions = ({
                 // Get the editor's position
                 const editorRect = quillInstance.root.getBoundingClientRect();
 
+                // Store trigger position for later use
+                triggerPositionRef.current = lastTriggerPos;
+
                 const filteredItems = suggestions.filter(
                     item =>
                         item.label.toLowerCase().includes(query.toLowerCase()) ||
@@ -110,34 +119,101 @@ export const useSuggestions = ({
         }
 
         setState(prev => ({ ...prev, isOpen: false }));
+        triggerPositionRef.current = null;
         return false;
     }, [quillInstance, suggestions, trigger, closingChar]);
 
-    const insertSuggestion = useCallback((item: BaseEditorItem) => {
+    // A separate function to safely insert text at the trigger position
+    const insertAtTrigger = useCallback((content: string, triggerPos: number) => {
         if (!quillInstance) return;
 
-        const selection = quillInstance.getSelection();
-        if (!selection) return;
+        try {
+            // Focus the editor first to ensure it's ready to receive changes
+            quillInstance.focus();
 
-        const cursorPosition = selection.index;
-        const text = quillInstance.getText();
-        const textBeforeCursor = text.slice(0, cursorPosition);
-        const lastTriggerPos = textBeforeCursor.lastIndexOf(trigger);
+            // Small delay to ensure focus has taken effect
+            setTimeout(() => {
+                try {
+                    // Get current selection to calculate what to delete
+                    let selection = quillInstance.getSelection();
+                    if (!selection) {
+                        // If no selection, set one at the trigger position
+                        quillInstance.setSelection(triggerPos, 0);
 
-        if (lastTriggerPos >= 0) {
-            // Delete from trigger to cursor
-            quillInstance.deleteText(lastTriggerPos, cursorPosition - lastTriggerPos);
+                        // Short delay to ensure selection is set
+                        setTimeout(() => {
+                            try {
+                                // Try getting selection again
+                                selection = quillInstance.getSelection();
 
-            // Insert the full template with value
-            const template = `${trigger}${item.value}${closingChar}`;
-            quillInstance.insertText(lastTriggerPos, template);
+                                // If still null, use a default
+                                if (!selection) {
+                                    // Create a safe default
+                                    selection = { index: triggerPos, length: 0 };
+                                }
 
-            // Move cursor after the inserted template
-            quillInstance.setSelection(lastTriggerPos + template.length, 0);
+                                // Calculate delete length (from trigger to cursor)
+                                const deleteLength = selection.index - triggerPos + selection.length;
+                                if (deleteLength > 0) {
+                                    quillInstance.deleteText(triggerPos, deleteLength);
+                                }
 
-            setState(prev => ({ ...prev, isOpen: false }));
+                                // Insert the new content
+                                quillInstance.insertText(triggerPos, content);
+
+                                // Move cursor after the inserted content
+                                quillInstance.setSelection(triggerPos + content.length, 0);
+                            } catch (error) {
+                                console.error('Error in delayed insertion:', error);
+                            }
+                        }, 10);
+                    } else {
+                        // We have a selection, proceed normally
+                        const deleteLength = selection.index - triggerPos + selection.length;
+                        if (deleteLength > 0) {
+                            quillInstance.deleteText(triggerPos, deleteLength);
+                        }
+
+                        // Insert the new content
+                        quillInstance.insertText(triggerPos, content);
+
+                        // Move cursor after the inserted content
+                        quillInstance.setSelection(triggerPos + content.length, 0);
+                    }
+                } catch (error) {
+                    console.error('Error inserting content:', error);
+                }
+            }, 10);
+        } catch (error) {
+            console.error('Error in insertAtTrigger:', error);
         }
-    }, [quillInstance, trigger, closingChar]);
+    }, [quillInstance]);
+
+    const insertSuggestion = useCallback((item: BaseEditorItem) => {
+        if (!quillInstance || triggerPositionRef.current === null) return;
+
+        // First make sure we close the dropdown
+        setState(prev => ({ ...prev, isOpen: false }));
+
+        // Wait a moment for the UI to update
+        setTimeout(() => {
+            try {
+                // Focus editor first
+                quillInstance.focus();
+
+                // Create the full template text
+                const templateText = `${trigger}${item.value}${closingChar}`;
+
+                // Insert at the stored trigger position
+                insertAtTrigger(templateText, triggerPositionRef.current as number);
+
+                // Reset the trigger position
+                triggerPositionRef.current = null;
+            } catch (error) {
+                console.error('Error inserting suggestion:', error);
+            }
+        }, 0);
+    }, [quillInstance, trigger, closingChar, insertAtTrigger]);
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (!state.isOpen) return;
@@ -145,40 +221,46 @@ export const useSuggestions = ({
         switch (e.key) {
             case 'ArrowDown':
                 e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation?.();
                 setState(prev => ({
                     ...prev,
-                    selectedIndex: prev.selectedIndex >= prev.filteredItems.length - 1
-                        ? prev.filteredItems.length - 1
-                        : prev.selectedIndex + 1
+                    selectedIndex: Math.min(prev.selectedIndex + 1, prev.filteredItems.length - 1)
                 }));
                 break;
 
             case 'ArrowUp':
                 e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation?.();
                 setState(prev => ({
                     ...prev,
-                    selectedIndex: prev.selectedIndex <= 0 ? 0 : prev.selectedIndex - 1
+                    selectedIndex: Math.max(prev.selectedIndex - 1, 0)
                 }));
                 break;
 
             case 'Enter':
                 e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation?.();
                 if (state.filteredItems[state.selectedIndex]) {
                     insertSuggestion(state.filteredItems[state.selectedIndex]);
-                    setState(prev => ({ ...prev, isOpen: false }));
                 }
                 break;
 
             case 'Escape':
                 e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation?.();
                 setState(prev => ({ ...prev, isOpen: false }));
                 break;
 
             case 'Tab':
                 e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation?.();
                 if (state.filteredItems[state.selectedIndex]) {
                     insertSuggestion(state.filteredItems[state.selectedIndex]);
-                    setState(prev => ({ ...prev, isOpen: false }));
                 }
                 break;
         }
@@ -186,11 +268,22 @@ export const useSuggestions = ({
 
     // Setup and cleanup keyboard event handlers
     useEffect(() => {
-        document.addEventListener('keydown', handleKeyDown);
-        return () => {
-            document.removeEventListener('keydown', handleKeyDown);
+        if (!state.isOpen) return;
+
+        // Create a reference to the current callback
+        const currentHandleKeyDown = handleKeyDown;
+
+        const handleKeyPress = (e: KeyboardEvent) => {
+            currentHandleKeyDown(e);
         };
-    }, [handleKeyDown]);
+
+        // Add event listener with capture to ensure we get the event first
+        document.addEventListener('keydown', handleKeyPress, true);
+
+        return () => {
+            document.removeEventListener('keydown', handleKeyPress, true);
+        };
+    }, [state.isOpen, handleKeyDown]);
 
     // Setup Quill text-change handler
     useEffect(() => {
@@ -213,9 +306,12 @@ export const useSuggestions = ({
     const highlightTemplates = useCallback(() => {
         if (!quillInstance) return;
 
-        const text = quillInstance.getText();
-        templateRegex.extractMatches(text);
-
+        try {
+            const text = quillInstance.getText();
+            templateRegex.extractMatches(text);
+        } catch (error) {
+            console.error('Error highlighting templates:', error);
+        }
     }, [quillInstance, templateRegex]);
 
     // Apply highlighting on editor content changes

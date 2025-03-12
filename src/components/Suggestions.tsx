@@ -56,20 +56,28 @@ export const Suggestions: React.FC<SuggestionsProps> = ({
     useEffect(() => {
         if (!isOpen || !dropdownRef.current) return;
 
-        // Adjust position to ensure dropdown is visible
-        const dropdown = dropdownRef.current;
-        const rect = dropdown.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        const viewportWidth = window.innerWidth;
+        try {
+            // Adjust position to ensure dropdown is visible
+            const dropdown = dropdownRef.current;
+            const rect = dropdown.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            const viewportWidth = window.innerWidth;
 
-        // Check if dropdown would go below viewport
-        if (position.top + rect.height > viewportHeight) {
-            dropdown.style.top = `${position.top - rect.height}px`;
-        }
+            // Check if dropdown would go below viewport
+            if (position.top + rect.height > viewportHeight) {
+                dropdown.style.top = `${position.top - rect.height}px`;
+            } else {
+                dropdown.style.top = `${position.top + window.scrollY}px`;
+            }
 
-        // Check if dropdown would go beyond right edge
-        if (position.left + rect.width > viewportWidth) {
-            dropdown.style.left = `${viewportWidth - rect.width - 10}px`;
+            // Check if dropdown would go beyond right edge
+            if (position.left + rect.width > viewportWidth) {
+                dropdown.style.left = `${viewportWidth - rect.width - 10}px`;
+            } else {
+                dropdown.style.left = `${position.left}px`;
+            }
+        } catch (error) {
+            console.error("Error positioning dropdown:", error);
         }
     }, [isOpen, position]);
 
@@ -77,19 +85,49 @@ export const Suggestions: React.FC<SuggestionsProps> = ({
     useEffect(() => {
         if (!isOpen || !selectedItemRef.current) return;
 
-        selectedItemRef.current.scrollIntoView({
-            block: 'nearest',
-            behavior: 'smooth'
-        });
+        try {
+            selectedItemRef.current.scrollIntoView({
+                block: 'nearest',
+                behavior: 'smooth'
+            });
+        } catch (error) {
+            console.error("Error scrolling to selection:", error);
+        }
     }, [isOpen, selectedIndex]);
 
-    const handleItemClick = useCallback((item: BaseEditorItem, event: React.MouseEvent) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onSelect(item);
+    // Safe way to handle item selection
+    const handleItemSelect = useCallback((item: BaseEditorItem) => {
+        try {
+            // Create a promise to handle the selection
+            setTimeout(() => {
+                onSelect(item);
+            }, 10);
+        } catch (error) {
+            console.error("Error selecting item:", error);
+        }
     }, [onSelect]);
 
-    if (!isOpen || items.length === 0) {
+    // Safer mousedown handler
+    const handleItemMouseDown = useCallback((e: React.MouseEvent, item: BaseEditorItem) => {
+        try {
+            // Prevent default behavior and stop event propagation
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Defer selection to prevent focus issues
+            handleItemSelect(item);
+        } catch (error) {
+            console.error("Error in mouseDown handler:", error);
+        }
+    }, [handleItemSelect]);
+
+    // Prevent container events from propagating
+    const handleContainerMouseDown = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    }, []);
+
+    if (!isOpen || !items || items.length === 0) {
         return null;
     }
 
@@ -111,13 +149,14 @@ export const Suggestions: React.FC<SuggestionsProps> = ({
                 maxWidth,
                 border: '1px solid #e0e0e0',
             }}
-            onMouseDown={(e) => e.preventDefault()} // Prevent blur when clicking the dropdown
+            onMouseDown={handleContainerMouseDown}
+            data-testid="suggestions-dropdown"
         >
             {items.map((item, index) => (
                 <div
-                    key={item.id}
+                    key={item.id || `suggestion-${index}`}
                     ref={index === selectedIndex ? selectedItemRef : null}
-                    onMouseDown={(e) => handleItemClick(item, e)}
+                    onMouseDown={(e) => handleItemMouseDown(e, item)}
                     className={`suggestion-item ${classNames?.suggestion || ''} ${index === selectedIndex ? classNames?.suggestionSelected || '' : ''
                         }`}
                     style={{
@@ -128,6 +167,7 @@ export const Suggestions: React.FC<SuggestionsProps> = ({
                         borderBottom: '1px solid #eee',
                         userSelect: 'none'
                     }}
+                    data-index={index}
                 >
                     {renderItem ? (
                         renderItem(item, index === selectedIndex)

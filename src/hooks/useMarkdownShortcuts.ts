@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, MutableRefObject } from 'react';
 import Quill from 'quill';
 
 /**
@@ -8,7 +8,7 @@ import Quill from 'quill';
  * - Removes formatting when asterisks are deleted
  * - Preserves native bold functionality (toolbar button and Ctrl+B)
  */
-const useMarkdownShortcuts = (quill: Quill | null) => {
+const useMarkdownShortcuts = (quill: Quill | null, isModifyingText?: MutableRefObject<boolean>) => {
     // Keep track of the last processed text to detect asterisk removals
     const lastProcessedText = useRef<string>('');
 
@@ -24,6 +24,10 @@ const useMarkdownShortcuts = (quill: Quill | null) => {
 
         // Set the processing flag to prevent recursion
         if (isProcessingMarkdown.current) return;
+
+        // Skip processing if text is being modified by another process (like suggestions)
+        if (isModifyingText?.current === true) return;
+
         isProcessingMarkdown.current = true;
 
         const text = quill.getText();
@@ -72,11 +76,14 @@ const useMarkdownShortcuts = (quill: Quill | null) => {
 
         // Reset the processing flag
         isProcessingMarkdown.current = false;
-    }, [quill]);
+    }, [quill, isModifyingText]);
 
     // Handle asterisk auto-pairing with strict validation
     const handleAsteriskInput = useCallback((event: KeyboardEvent) => {
         if (!quill || event.key !== '*') return;
+
+        // Skip if text is being modified by another process (like suggestions)
+        if (isModifyingText?.current === true) return;
 
         // Get current selection
         const selection = quill.getSelection();
@@ -141,11 +148,14 @@ const useMarkdownShortcuts = (quill: Quill | null) => {
             quill.insertText(cursorPosition, '**');
             quill.setSelection(cursorPosition + 1, 0);
         }
-    }, [quill]);
+    }, [quill, isModifyingText]);
 
     // Check if an asterisk was deleted and remove any associated formatting
     const checkForDeletedAsterisks = useCallback((currentText: string) => {
         if (!quill || !lastProcessedText.current) return;
+
+        // Skip if text is being modified by another process (like suggestions)
+        if (isModifyingText?.current === true) return;
 
         // Simple length check to avoid complex processing when not needed
         if (currentText.length >= lastProcessedText.current.length) {
@@ -178,11 +188,14 @@ const useMarkdownShortcuts = (quill: Quill | null) => {
                 break;
             }
         }
-    }, [quill]);
+    }, [quill, isModifyingText]);
 
     // Set up event listeners
     useEffect(() => {
         if (!quill) return;
+
+        // Skip setting up if we're currently modifying text
+        if (isModifyingText?.current === true) return;
 
         // Process existing markdown when initialized
         processMarkdown();
@@ -195,6 +208,9 @@ const useMarkdownShortcuts = (quill: Quill | null) => {
         const handleTextChange = () => {
             // Don't process if we're already doing it (prevents recursion)
             if (isProcessingMarkdown.current) return;
+
+            // Skip if text is being modified by another process (like suggestions)
+            if (isModifyingText?.current === true) return;
 
             const currentText = quill.getText();
 
@@ -212,7 +228,7 @@ const useMarkdownShortcuts = (quill: Quill | null) => {
             editorElement.removeEventListener('keydown', handleAsteriskInput);
             quill.off('text-change', handleTextChange);
         };
-    }, [quill, handleAsteriskInput, processMarkdown, checkForDeletedAsterisks]);
+    }, [quill, handleAsteriskInput, processMarkdown, checkForDeletedAsterisks, isModifyingText]);
 
     // Add CSS to style asterisks
     useEffect(() => {

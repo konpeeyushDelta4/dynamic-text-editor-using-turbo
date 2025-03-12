@@ -82,10 +82,21 @@ export const useDynamicTextEditor = ({
     const [editorState, setEditorState] = useState<string>(defaultValue);
     const prevToolbarRef = useRef(toolbar);
 
+    // Add a flag to track if we're manually modifying text
+    const isModifyingText = useRef<boolean>(false);
+
     // Handle text change events
-    const handleTextChange = useCallback((html: string) => {
+    const handleTextChange = useCallback((html: string, delta: any, source: string) => {
+        // Update our local state
         setEditorState(html);
-        onChange?.(html);
+
+        // Skip onChange if we're currently modifying text programmatically to avoid recursion
+        if (isModifyingText.current) return;
+
+        // Call the onChange callback with the HTML content
+        if (onChange) {
+            onChange(html);
+        }
     }, [onChange]);
 
     // Initialize Quill using our useQuill hook
@@ -105,9 +116,6 @@ export const useDynamicTextEditor = ({
         onTextChange: handleTextChange
     });
 
-    // Add markdown shortcuts
-    const { processMarkdown } = useMarkdownShortcuts(quillInstance);
-
     // Use the suggestions hook
     const {
         suggestionState,
@@ -125,6 +133,9 @@ export const useDynamicTextEditor = ({
         trigger: suggestionTrigger,
         closingChar: suggestionClosing
     });
+
+    // Initialize Markdown shortcuts with our modification tracking flag
+    const { processMarkdown } = useMarkdownShortcuts(quillInstance, isModifyingText);
 
     // Apply custom styles to Quill
     useEffect(() => {
@@ -240,9 +251,49 @@ export const useDynamicTextEditor = ({
 
     // Modified wrapper for insertSuggestion
     const insertSuggestion = useCallback((item: BaseEditorItem) => {
-        insertSuggestionFromHook(item);
-        setTimeout(highlightTemplates, 0); // Re-highlight after insertion
-    }, [insertSuggestionFromHook, highlightTemplates]);
+        if (!quillInstance) return;
+
+        try {
+            // Set flag to indicate we're manually modifying text
+            isModifyingText.current = true;
+
+            // First focus the editor
+            quillInstance.focus();
+
+            // Use a small delay to ensure focus has taken effect
+            setTimeout(() => {
+                try {
+                    // Insert the suggestion
+                    insertSuggestionFromHook(item);
+
+                    // Apply highlighting after insertion with another delay
+                    // to ensure the content is fully updated
+                    setTimeout(() => {
+                        try {
+                            // Apply any necessary highlighting
+                            highlightTemplates();
+
+                            // Wait a bit more before allowing Markdown processing again
+                            // This ensures all DOM operations are complete
+                            setTimeout(() => {
+                                // Reset the modification flag when completely done
+                                isModifyingText.current = false;
+                            }, 50);
+                        } catch (error) {
+                            console.error("Error in final suggestion processing:", error);
+                            isModifyingText.current = false;
+                        }
+                    }, 30);
+                } catch (error) {
+                    console.error("Error inserting suggestion:", error);
+                    isModifyingText.current = false;
+                }
+            }, 10);
+        } catch (error) {
+            console.error("Error in insertSuggestion:", error);
+            isModifyingText.current = false;
+        }
+    }, [insertSuggestionFromHook, highlightTemplates, quillInstance]);
 
     return {
         quillRef: containerRef,
