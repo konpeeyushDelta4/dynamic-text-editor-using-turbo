@@ -5,6 +5,7 @@ import Suggestions from "./Suggestions";
 import "quill/dist/quill.snow.css";
 import "quill/dist/quill.bubble.css";
 import "../styles/editor.css";
+import "../styles/suggestions.css";
 
 const DynamicTextEditorBase: ForwardRefRenderFunction<DynamicTextEditorRef, DynamicTextEditorProps> = (
     {
@@ -63,7 +64,8 @@ const DynamicTextEditorBase: ForwardRefRenderFunction<DynamicTextEditorRef, Dyna
                 classNames={{
                     suggestions: classNames?.suggestions,
                     suggestion: classNames?.suggestion,
-                    suggestionSelected: classNames?.suggestionSelected
+                    suggestionSelected: classNames?.suggestionSelected,
+                    suggestionHovered: classNames?.suggestionHovered
                 }}
                 maxHeight={maxSuggestionHeight}
                 minWidth={minSuggestionWidth}

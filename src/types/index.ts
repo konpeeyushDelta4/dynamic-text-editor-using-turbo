@@ -18,6 +18,7 @@ export interface EditorClassNames {
     suggestions?: string;
     suggestion?: string;
     suggestionSelected?: string;
+    suggestionHovered?: string;
     category?: string;
     description?: string;
 }
@@ -29,7 +30,7 @@ export interface DynamicTextEditorProps {
     placeholder?: string;
     className?: string;
     classNames?: EditorClassNames;
-    renderItem?: (item: BaseEditorItem, isSelected: boolean) => ReactNode;
+    renderItem?: (item: BaseEditorItem, isSelected: boolean, isHovered: boolean) => ReactNode;
     renderCategory?: (item: BaseEditorItem) => ReactNode;
     renderDescription?: (item: BaseEditorItem) => ReactNode;
     minSuggestionWidth?: number;

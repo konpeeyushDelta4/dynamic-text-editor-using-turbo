@@ -37,10 +37,25 @@ export const useSuggestions = ({
     // Create a ref for trigger position tracking
     const triggerPositionRef = useRef<number | null>(null);
 
+    // Create a ref to track the current selectedIndex to prevent state closure issues
+    const selectedIndexRef = useRef<number>(0);
+
+    // Keep track of the last used index to preserve between dropdown openings
+    const lastUsedIndexRef = useRef<number>(0);
+
     // Create regex for matching {{template}}
     const templateRegex = useRegex(
         new RegExp(`${trigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^${closingChar}]*)${closingChar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'g')
     );
+
+    // Keep selectedIndexRef in sync with state
+    useEffect(() => {
+        selectedIndexRef.current = state.selectedIndex;
+        // Also update lastUsedIndexRef when the dropdown is open
+        if (state.isOpen) {
+            lastUsedIndexRef.current = state.selectedIndex;
+        }
+    }, [state.selectedIndex, state.isOpen]);
 
     const checkForTrigger = useCallback(() => {
         if (!quillInstance) return;
@@ -64,12 +79,16 @@ export const useSuggestions = ({
             // Store trigger position for later use
             triggerPositionRef.current = cursorPosition - trigger.length;
 
+            // Use the last used index instead of resetting to 0
+            const indexToUse = lastUsedIndexRef.current;
+            selectedIndexRef.current = indexToUse;
+
             setState(prev => ({
                 ...prev,
                 isOpen: true,
                 query: '',
                 filteredItems: suggestions,
-                selectedIndex: 0,
+                selectedIndex: indexToUse, // Use stored index instead of 0
                 triggerPosition: {
                     top: editorRect.top + bounds.top + bounds.height + 5, // Add 5px padding
                     left: editorRect.left + bounds.left
@@ -102,12 +121,16 @@ export const useSuggestions = ({
                         item.value.toLowerCase().includes(query.toLowerCase())
                 );
 
+                // When filtering changes we do reset the index for better UX
+                const indexToUse = 0;
+                selectedIndexRef.current = indexToUse;
+
                 setState(prev => ({
                     ...prev,
                     isOpen: true,
                     query,
                     filteredItems,
-                    selectedIndex: 0,
+                    selectedIndex: indexToUse,
                     triggerPosition: {
                         top: editorRect.top + bounds.top + bounds.height + 5, // Add 5px padding
                         left: editorRect.left + bounds.left
@@ -192,6 +215,10 @@ export const useSuggestions = ({
     const insertSuggestion = useCallback((item: BaseEditorItem) => {
         if (!quillInstance || triggerPositionRef.current === null) return;
 
+        // Save the current index before closing
+        const currentIndex = selectedIndexRef.current;
+        lastUsedIndexRef.current = currentIndex;
+
         // First make sure we close the dropdown
         setState(prev => ({ ...prev, isOpen: false }));
 
@@ -215,73 +242,84 @@ export const useSuggestions = ({
         }, 0);
     }, [quillInstance, trigger, closingChar, insertAtTrigger]);
 
+    // Simplified handleKeyDown function with direct state updates to ensure they persist
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (!state.isOpen) return;
+
+        console.log(`Key pressed: ${e.key}, current index: ${selectedIndexRef.current}, items: ${state.filteredItems.length}`);
 
         switch (e.key) {
             case 'ArrowDown':
                 e.preventDefault();
                 e.stopPropagation();
-                e.stopImmediatePropagation?.();
+
+                // Calculate new index using the ref for current value
+                const nextDownIndex = Math.min(selectedIndexRef.current + 1, state.filteredItems.length - 1);
+                console.log(`🔽 ArrowDown: ${selectedIndexRef.current} → ${nextDownIndex}`);
+
+                // Update both the ref and the state
+                selectedIndexRef.current = nextDownIndex;
+                lastUsedIndexRef.current = nextDownIndex;
                 setState(prev => ({
                     ...prev,
-                    selectedIndex: Math.min(prev.selectedIndex + 1, prev.filteredItems.length - 1)
+                    selectedIndex: nextDownIndex
                 }));
                 break;
 
             case 'ArrowUp':
                 e.preventDefault();
                 e.stopPropagation();
-                e.stopImmediatePropagation?.();
+
+                // Calculate new index using the ref for current value
+                const nextUpIndex = Math.max(selectedIndexRef.current - 1, 0);
+                console.log(`🔼 ArrowUp: ${selectedIndexRef.current} → ${nextUpIndex}`);
+
+                // Update both the ref and the state
+                selectedIndexRef.current = nextUpIndex;
+                lastUsedIndexRef.current = nextUpIndex;
                 setState(prev => ({
                     ...prev,
-                    selectedIndex: Math.max(prev.selectedIndex - 1, 0)
+                    selectedIndex: nextUpIndex
                 }));
                 break;
 
             case 'Enter':
+            case 'Tab':
                 e.preventDefault();
                 e.stopPropagation();
-                e.stopImmediatePropagation?.();
-                if (state.filteredItems[state.selectedIndex]) {
-                    insertSuggestion(state.filteredItems[state.selectedIndex]);
+
+                // Use the ref to ensure we have the latest index
+                const currentIndex = selectedIndexRef.current;
+                lastUsedIndexRef.current = currentIndex;
+
+                if (state.filteredItems[currentIndex]) {
+                    console.log(`Inserting: ${state.filteredItems[currentIndex].label}`);
+                    insertSuggestion(state.filteredItems[currentIndex]);
+                } else {
+                    console.error(`No item at index ${currentIndex}`);
                 }
                 break;
 
             case 'Escape':
                 e.preventDefault();
                 e.stopPropagation();
-                e.stopImmediatePropagation?.();
                 setState(prev => ({ ...prev, isOpen: false }));
                 break;
-
-            case 'Tab':
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation?.();
-                if (state.filteredItems[state.selectedIndex]) {
-                    insertSuggestion(state.filteredItems[state.selectedIndex]);
-                }
-                break;
         }
-    }, [state.isOpen, state.filteredItems, state.selectedIndex, insertSuggestion]);
+    }, [state.isOpen, state.filteredItems, insertSuggestion]);
 
-    // Setup and cleanup keyboard event handlers
+    // Add console logs to useEffect for keydown listener
     useEffect(() => {
         if (!state.isOpen) return;
 
-        // Create a reference to the current callback
-        const currentHandleKeyDown = handleKeyDown;
-
-        const handleKeyPress = (e: KeyboardEvent) => {
-            currentHandleKeyDown(e);
-        };
+        console.log(`🎹 Keyboard navigation attached, selectedIndex: ${state.selectedIndex}, lastUsedIndex: ${lastUsedIndexRef.current}`);
 
         // Add event listener with capture to ensure we get the event first
-        document.addEventListener('keydown', handleKeyPress, true);
+        document.addEventListener('keydown', handleKeyDown, true);
 
         return () => {
-            document.removeEventListener('keydown', handleKeyPress, true);
+            console.log('🎹 Keyboard navigation detached');
+            document.removeEventListener('keydown', handleKeyDown, true);
         };
     }, [state.isOpen, handleKeyDown]);
 

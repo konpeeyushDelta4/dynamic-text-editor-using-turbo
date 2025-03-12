@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { BaseEditorItem } from '../types';
+import '../styles/suggestions.css';
 
 interface SuggestionsProps {
     isOpen: boolean;
@@ -7,32 +8,34 @@ interface SuggestionsProps {
     position: { top: number; left: number };
     selectedIndex: number;
     onSelect: (item: BaseEditorItem) => void;
-    renderItem?: (item: BaseEditorItem, isSelected: boolean) => React.ReactNode;
+    renderItem?: (item: BaseEditorItem, isSelected: boolean, isHovered: boolean) => React.ReactNode;
     classNames?: {
         suggestions?: string;
         suggestion?: string;
         suggestionSelected?: string;
+        suggestionHovered?: string;
     };
     maxHeight?: number;
     minWidth?: number;
     maxWidth?: number;
 }
 
-const DefaultSuggestionItem = ({ item, isSelected }: { item: BaseEditorItem; isSelected: boolean }) => (
-    <div
-        style={{
-            padding: "8px 12px",
-            backgroundColor: isSelected ? "#f0f9ff" : "transparent",
-            cursor: "pointer",
-            borderBottom: "1px solid #eee"
-        }}
-    >
-        <div style={{ fontWeight: "bold" }}>{item.label}</div>
+const DefaultSuggestionItem = ({
+    item,
+    isSelected,
+    isHovered
+}: {
+    item: BaseEditorItem;
+    isSelected: boolean;
+    isHovered: boolean;
+}) => (
+    <div className="suggestion-item-content default-suggestion">
+        <div className="suggestion-item-label">{item.label}</div>
         {item.description && (
-            <div style={{ fontSize: "0.9em", color: "#666" }}>{item.description}</div>
+            <div className="suggestion-item-description">{item.description}</div>
         )}
         {item.category && (
-            <div style={{ fontSize: "0.8em", color: "#888" }}>{item.category}</div>
+            <div className="suggestion-item-category">{item.category}</div>
         )}
     </div>
 );
@@ -51,6 +54,9 @@ export const Suggestions: React.FC<SuggestionsProps> = ({
 }) => {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const selectedItemRef = useRef<HTMLDivElement>(null);
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+    const previousSelectedIndex = useRef<number>(-1); // Start with -1 to ensure first render scrolls
+    const isFirstRender = useRef<boolean>(true);
 
     // Handle viewport positioning
     useEffect(() => {
@@ -81,19 +87,54 @@ export const Suggestions: React.FC<SuggestionsProps> = ({
         }
     }, [isOpen, position]);
 
-    // Handle selected item scrolling
+    // Scroll to selected item whenever dropdown opens or selectedIndex changes
     useEffect(() => {
         if (!isOpen || !selectedItemRef.current) return;
 
-        try {
-            selectedItemRef.current.scrollIntoView({
-                block: 'nearest',
-                behavior: 'smooth'
-            });
-        } catch (error) {
-            console.error("Error scrolling to selection:", error);
+        // On first render when dropdown opens, always scroll
+        if (isFirstRender.current && isOpen) {
+            isFirstRender.current = false;
+            try {
+                console.log(`📌 Initial scroll to item ${selectedIndex} of ${items.length}`);
+                selectedItemRef.current.scrollIntoView({
+                    block: 'nearest',
+                    behavior: 'smooth'
+                });
+            } catch (error) {
+                console.error("Error during initial scroll:", error);
+            }
+            previousSelectedIndex.current = selectedIndex;
+            return;
         }
-    }, [isOpen, selectedIndex]);
+
+        // On subsequent renders, only scroll when selectedIndex changes
+        if (previousSelectedIndex.current !== selectedIndex) {
+            console.log(`📌 Scrolling to item ${selectedIndex} of ${items.length}`);
+
+            try {
+                selectedItemRef.current.scrollIntoView({
+                    block: 'nearest',
+                    behavior: 'smooth'
+                });
+            } catch (error) {
+                console.error("Error scrolling to selection:", error);
+            }
+
+            previousSelectedIndex.current = selectedIndex;
+        }
+    }, [isOpen, selectedIndex, items.length]);
+
+    // Reset first render flag when dropdown closes
+    useEffect(() => {
+        if (!isOpen) {
+            isFirstRender.current = true;
+        }
+    }, [isOpen]);
+
+    // Reset hovered index when dropdown opens/closes or selection changes
+    useEffect(() => {
+        setHoveredIndex(null);
+    }, [isOpen, selectedIndex, items]);
 
     // Safe way to handle item selection
     const handleItemSelect = useCallback((item: BaseEditorItem) => {
@@ -121,6 +162,16 @@ export const Suggestions: React.FC<SuggestionsProps> = ({
         }
     }, [handleItemSelect]);
 
+    // Handle mouse enter for hover effect
+    const handleItemMouseEnter = useCallback((index: number) => {
+        setHoveredIndex(index);
+    }, []);
+
+    // Handle mouse leave for hover effect
+    const handleItemMouseLeave = useCallback(() => {
+        setHoveredIndex(null);
+    }, []);
+
     // Prevent container events from propagating
     const handleContainerMouseDown = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
@@ -131,51 +182,61 @@ export const Suggestions: React.FC<SuggestionsProps> = ({
         return null;
     }
 
+    // CSS for the dropdown container
+    const dropdownStyle: React.CSSProperties = {
+        position: 'fixed',
+        top: position.top + window.scrollY,
+        left: position.left,
+        zIndex: 9999,
+        maxHeight,
+        minWidth,
+        maxWidth,
+        overflowY: 'auto',  // Enable vertical scrolling
+        overflowX: 'hidden' // Prevent horizontal scrolling
+    };
+
     return (
         <div
             ref={dropdownRef}
             className={`suggestions-dropdown ${classNames?.suggestions || ''}`}
-            style={{
-                position: 'fixed',
-                top: position.top + window.scrollY,
-                left: position.left,
-                zIndex: 9999,
-                backgroundColor: 'white',
-                borderRadius: '6px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                maxHeight,
-                overflowY: 'auto',
-                minWidth,
-                maxWidth,
-                border: '1px solid #e0e0e0',
-            }}
+            style={dropdownStyle}
             onMouseDown={handleContainerMouseDown}
             data-testid="suggestions-dropdown"
         >
-            {items.map((item, index) => (
-                <div
-                    key={item.id || `suggestion-${index}`}
-                    ref={index === selectedIndex ? selectedItemRef : null}
-                    onMouseDown={(e) => handleItemMouseDown(e, item)}
-                    className={`suggestion-item ${classNames?.suggestion || ''} ${index === selectedIndex ? classNames?.suggestionSelected || '' : ''
-                        }`}
-                    style={{
-                        transition: 'background-color 0.2s ease',
-                        padding: '8px 12px',
-                        cursor: 'pointer',
-                        backgroundColor: index === selectedIndex ? '#f0f9ff' : 'transparent',
-                        borderBottom: '1px solid #eee',
-                        userSelect: 'none'
-                    }}
-                    data-index={index}
-                >
-                    {renderItem ? (
-                        renderItem(item, index === selectedIndex)
-                    ) : (
-                        <DefaultSuggestionItem item={item} isSelected={index === selectedIndex} />
-                    )}
-                </div>
-            ))}
+            {items.map((item, index) => {
+                const isSelected = index === selectedIndex;
+                const isHovered = index === hoveredIndex;
+                const hasCustomRenderer = !!renderItem;
+
+                // Class names for the item - apply different classes based on whether this uses a custom renderer
+                const itemClassNames = `
+                    suggestion-item 
+                    ${!hasCustomRenderer ? 'default-suggestion-item' : 'custom-suggestion-item'}
+                    ${isSelected ? 'selected' : ''} 
+                    ${classNames?.suggestion || ''} 
+                    ${isSelected ? classNames?.suggestionSelected || '' : ''} 
+                    ${isHovered ? classNames?.suggestionHovered || '' : ''}
+                `;
+
+                return (
+                    <div
+                        key={item.id || `suggestion-${index}`}
+                        ref={isSelected ? selectedItemRef : null}
+                        onMouseDown={(e) => handleItemMouseDown(e, item)}
+                        onMouseEnter={() => handleItemMouseEnter(index)}
+                        onMouseLeave={handleItemMouseLeave}
+                        className={itemClassNames}
+                        data-index={index}
+                        style={hasCustomRenderer && isSelected ? { backgroundColor: 'rgba(0, 120, 212, 0.08)' } : undefined}
+                    >
+                        {renderItem ? (
+                            renderItem(item, isSelected, isHovered)
+                        ) : (
+                            <DefaultSuggestionItem item={item} isSelected={isSelected} isHovered={isHovered} />
+                        )}
+                    </div>
+                );
+            })}
         </div>
     );
 };
