@@ -98,7 +98,6 @@ export const Suggestions: React.FC<SuggestionsProps> = ({
                 console.log(`📌 Initial scroll to item ${selectedIndex} of ${items.length}`);
                 selectedItemRef.current.scrollIntoView({
                     block: 'nearest',
-                    behavior: 'smooth'
                 });
             } catch (error) {
                 console.error("Error during initial scroll:", error);
@@ -114,7 +113,6 @@ export const Suggestions: React.FC<SuggestionsProps> = ({
             try {
                 selectedItemRef.current.scrollIntoView({
                     block: 'nearest',
-                    behavior: 'smooth'
                 });
             } catch (error) {
                 console.error("Error scrolling to selection:", error);
