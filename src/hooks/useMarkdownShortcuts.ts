@@ -1,38 +1,80 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import Quill from 'quill';
 
 /**
  * Hook to implement Markdown-style formatting shortcuts
- * - *text* to make text bold
- * - _text_ to make text italic (optional)
+ * - *text* to make text bold (strict matching, only exactly one asterisk on each side)
  * - Auto-pairs the syntax and applies formatting
+ * - Removes formatting when asterisks are deleted
+ * - Preserves native bold functionality (toolbar button and Ctrl+B)
  */
 const useMarkdownShortcuts = (quill: Quill | null) => {
-    // Process Markdown syntax and apply formatting without removing asterisks
+    // Keep track of the last processed text to detect asterisk removals
+    const lastProcessedText = useRef<string>('');
+
+    // Track currently formatted regions
+    const formattedRegions = useRef<Array<{ start: number; end: number }>>([]);
+
+    // Track if we're currently processing markdown to avoid conflicts
+    const isProcessingMarkdown = useRef<boolean>(false);
+
+    // Process Markdown syntax and apply formatting
     const processMarkdown = useCallback(() => {
         if (!quill) return;
 
+        // Set the processing flag to prevent recursion
+        if (isProcessingMarkdown.current) return;
+        isProcessingMarkdown.current = true;
+
         const text = quill.getText();
-        // Match text between asterisks
-        const boldPattern = /\*([^*]+)\*/g;
+
+        // Store current text for comparison in the next update
+        lastProcessedText.current = text;
+
+        // Clear tracked formatted regions
+        formattedRegions.current = [];
+
+        // Instead of removing all bold formatting, we'll only handle the asterisk patterns
+        // This way, bold formatting applied through the toolbar or Ctrl+B remains untouched
+
+        // Match text between exactly one asterisk on each side (strict matching)
+        const boldPattern = /(?<!\*)\*([^*]+)\*(?!\*)/g;
         let match;
 
-        // Find all bold patterns
+        // Find all valid bold patterns
         while ((match = boldPattern.exec(text)) !== null) {
             const startIndex = match.index;
             const contentLength = match[1].length; // length of text between asterisks
+            const endIndex = startIndex + contentLength + 1; // end of content before closing asterisk
+
+            // Additional validation: ensure we have exactly one asterisk on each side
+            const openingChar = text[startIndex];
+            const closingChar = text[startIndex + contentLength + 1];
+
+            if (openingChar !== '*' || closingChar !== '*') {
+                console.debug('Invalid format detected, skipping:', match[0]);
+                continue; // Skip this match
+            }
 
             try {
-                // Apply bold formatting to everything between the asterisks (including the asterisks)
-                // The +1 and -2 ensure we only format the content between the asterisks
+                // Apply bold formatting to the content between the asterisks
                 quill.formatText(startIndex + 1, contentLength, { bold: true });
+
+                // Track this formatted region
+                formattedRegions.current.push({
+                    start: startIndex,
+                    end: endIndex
+                });
             } catch (error) {
-                console.error("Error applying markdown formatting:", error);
+                console.error("Error applying bold formatting:", error);
             }
         }
+
+        // Reset the processing flag
+        isProcessingMarkdown.current = false;
     }, [quill]);
 
-    // Handle asterisk auto-pairing
+    // Handle asterisk auto-pairing with strict validation
     const handleAsteriskInput = useCallback((event: KeyboardEvent) => {
         if (!quill || event.key !== '*') return;
 
@@ -44,6 +86,25 @@ const useMarkdownShortcuts = (quill: Quill | null) => {
         event.preventDefault();
 
         const cursorPosition = selection.index;
+        const text = quill.getText();
+
+        // Strict validation: check for exact pattern conditions
+        // Check if already have multiple asterisks in a row
+        const hasPreviousAsterisk = cursorPosition > 0 && text[cursorPosition - 1] === '*';
+        const hasNextAsterisk = cursorPosition < text.length && text[cursorPosition] === '*';
+
+        // Check for multiple asterisks before current position
+        const hasMultipleAsterisks =
+            (cursorPosition > 1 && text[cursorPosition - 1] === '*' && text[cursorPosition - 2] === '*') ||
+            (cursorPosition < text.length - 1 && text[cursorPosition] === '*' && text[cursorPosition + 1] === '*');
+
+        // Check if this would create an invalid pattern
+        if (hasMultipleAsterisks) {
+            // Just insert a single asterisk without auto-pairing
+            quill.insertText(cursorPosition, '*');
+            quill.setSelection(cursorPosition + 1, 0);
+            return;
+        }
 
         // Check if there's selected text to wrap
         if (selection.length > 0) {
@@ -54,19 +115,68 @@ const useMarkdownShortcuts = (quill: Quill | null) => {
             quill.deleteText(selection.index, selection.length);
 
             // Insert asterisks with the selected text in the middle
+            // This is still valid since we're creating a proper *text* pattern
             quill.insertText(selection.index, '*');
             quill.insertText(selection.index + 1, selectedText);
             quill.insertText(selection.index + 1 + selectedText.length, '*');
 
-            // Format the text as bold (including the asterisks)
+            // Format the text as bold
             quill.formatText(selection.index + 1, selectedText.length, { bold: true });
+
+            // Track this newly formatted region
+            formattedRegions.current.push({
+                start: selection.index,
+                end: selection.index + selectedText.length + 1
+            });
 
             // Place cursor after the inserted content
             quill.setSelection(selection.index + selectedText.length + 2, 0);
+        } else if (hasPreviousAsterisk || hasNextAsterisk) {
+            // If we already have an asterisk before or after, just move the cursor
+            // This prevents creating invalid patterns like ** or ***
+            quill.setSelection(cursorPosition + (hasNextAsterisk ? 1 : 0), 0);
         } else {
-            // No text selected, just insert paired asterisks and place cursor in the middle
+            // No asterisks nearby, so it's safe to auto-pair
+            // Insert a pair of asterisks and place cursor between them
             quill.insertText(cursorPosition, '**');
             quill.setSelection(cursorPosition + 1, 0);
+        }
+    }, [quill]);
+
+    // Check if an asterisk was deleted and remove any associated formatting
+    const checkForDeletedAsterisks = useCallback((currentText: string) => {
+        if (!quill || !lastProcessedText.current) return;
+
+        // Simple length check to avoid complex processing when not needed
+        if (currentText.length >= lastProcessedText.current.length) {
+            return;
+        }
+
+        // Find removed asterisks
+        for (let i = 0; i < currentText.length; i++) {
+            // If characters don't match, we might have deletion
+            if (currentText[i] !== lastProcessedText.current[i]) {
+                // Check if an asterisk was removed
+                if (lastProcessedText.current[i] === '*') {
+                    console.debug('Asterisk removed at position', i);
+
+                    // Find the formatted region this asterisk belongs to
+                    const affectedRegion = formattedRegions.current.find(
+                        region => region.start === i || region.end === i
+                    );
+
+                    if (affectedRegion) {
+                        // Remove formatting for this region
+                        console.debug('Removing formatting for region', affectedRegion);
+                        quill.formatText(
+                            affectedRegion.start + 1,
+                            affectedRegion.end - affectedRegion.start - 1,
+                            { bold: false }
+                        );
+                    }
+                }
+                break;
+            }
         }
     }, [quill]);
 
@@ -83,6 +193,15 @@ const useMarkdownShortcuts = (quill: Quill | null) => {
 
         // Process markdown on text changes
         const handleTextChange = () => {
+            // Don't process if we're already doing it (prevents recursion)
+            if (isProcessingMarkdown.current) return;
+
+            const currentText = quill.getText();
+
+            // Check if asterisks were deleted
+            checkForDeletedAsterisks(currentText);
+
+            // Then process markdown formatting
             // Use a small delay to ensure text is fully updated
             setTimeout(processMarkdown, 10);
         };
@@ -93,7 +212,7 @@ const useMarkdownShortcuts = (quill: Quill | null) => {
             editorElement.removeEventListener('keydown', handleAsteriskInput);
             quill.off('text-change', handleTextChange);
         };
-    }, [quill, handleAsteriskInput, processMarkdown]);
+    }, [quill, handleAsteriskInput, processMarkdown, checkForDeletedAsterisks]);
 
     // Add CSS to style asterisks
     useEffect(() => {
@@ -129,10 +248,6 @@ const useMarkdownShortcuts = (quill: Quill | null) => {
 
             Quill.register('formats/markdown-syntax', MarkdownSyntaxBlot);
         }
-
-        // Use this to style the asterisks in processMarkdown:
-        // quill.formatText(startIndex, 1, { 'markdown-syntax': true });
-        // quill.formatText(startIndex + contentLength + 1, 1, { 'markdown-syntax': true });
     }, [quill]);
 
     return {

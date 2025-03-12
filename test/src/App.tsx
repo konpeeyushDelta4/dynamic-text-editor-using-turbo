@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { DynamicTextEditor } from 'dynamic-text-editor';
 import type { DynamicTextEditorRef, BaseEditorItem } from 'dynamic-text-editor';
+
 import './App.css';
 import './editor-styles.css';
 
