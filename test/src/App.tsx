@@ -153,7 +153,6 @@ const App = () => {
   const [content, setContent] = useState<string>('Hello {{VISITOR.name}}, *welcome* to {{CONTACT.company}}!');
   const editorRef = useRef<DynamicTextEditorRef>(null);
 
-  const [theme, setTheme] = useState<'snow' | 'bubble'>('snow');
 
   return (
     <div className="app-container">
@@ -162,7 +161,7 @@ const App = () => {
       <div className="editor-section">
         <DynamicTextEditor
           ref={editorRef}
-          theme={theme}
+          theme="snow"
           value={content}
           onChange={setContent}
           placeholder="Start typing in {{ to get dynamic prompt..."
