@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { DynamicTextEditor } from 'dynamic-text-editor';
 import type { DynamicTextEditorRef, BaseEditorItem } from 'dynamic-text-editor';
 
@@ -151,8 +151,39 @@ const InstructionsSection = () => (
 
 const App = () => {
   const [content, setContent] = useState<string>('Hello {{VISITOR.name}}, *welcome* to {{CONTACT.company}}!');
+  const [plainTextContent, setPlainTextContent] = useState<string>('Hello {{VISITOR.name}}, *welcome* to {{CONTACT.company}}!');
   const editorRef = useRef<DynamicTextEditorRef>(null);
 
+  // Update plainTextContent whenever content changes or quill instance is available
+  useEffect(() => {
+    if (editorRef.current?.quillInstance) {
+      const plainText = editorRef.current.quillInstance.getText();
+      setPlainTextContent(plainText);
+    }
+  }, [content, editorRef.current?.quillInstance]);
+
+  // Custom onChange handler to update both HTML content and plain text
+  const handleEditorChange = (htmlContent: string) => {
+    setContent(htmlContent);
+
+    // Get plain text directly from Quill
+    if (editorRef.current?.quillInstance) {
+      const plainText = editorRef.current.quillInstance.getText();
+      setPlainTextContent(plainText);
+    }
+  };
+
+  // Handle clear button click
+  const handleClear = () => {
+    if (editorRef.current) {
+      // Clear the editor content
+      editorRef.current.clearContent();
+
+      // Also manually update our states
+      setContent('');
+      setPlainTextContent('');
+    }
+  };
 
   return (
     <div className="app-container">
@@ -163,15 +194,13 @@ const App = () => {
           ref={editorRef}
           theme="snow"
           value={content}
-          onChange={setContent}
+          onChange={handleEditorChange}
           placeholder="Start typing in {{ to get dynamic prompt..."
           fontSize="1.8rem"
           lineHeight="1.6"
           width="100%"
           height="12em"
-          toolbar={[
-            ['bold', 'italic', 'underline']
-          ]}
+          toolbar={[['bold', 'italic', 'underline']]}
           suggestions={defaultSuggestions}
           renderItem={renderCustomItem}
           classNames={{
@@ -188,13 +217,21 @@ const App = () => {
 
         <div className="editor-controls">
           <button
-            onClick={() => editorRef.current?.clearContent()}
+            onClick={handleClear}
             className="editor-button"
           >
             Clear
           </button>
-
         </div>
+
+        {/* Plain Text Preview Section */}
+        <div className="preview-section">
+          <h3>Preview</h3>
+          <div className="preview-content raw-preview">
+            {plainTextContent}
+          </div>
+        </div>
+
         <InstructionsSection />
       </div>
     </div>

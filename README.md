@@ -316,4 +316,110 @@ const toolbarOptions = [['bold', 'italic', 'underline']];
 />
 ```
 
+## 🔄 Real-Time Preview
+
+You can easily add a real-time preview that updates as the user types in the editor:
+
+```jsx
+import { useState, useEffect } from 'react';
+import { DynamicTextEditor } from 'dynamic-text-editor';
+
+const EditorWithPreview = () => {
+  const [content, setContent] = useState('Hello {{user.name}}!');
+  const [previewContent, setPreviewContent] = useState([]);
+
+  // Function to highlight variables in preview
+  const highlightVariables = (text) => {
+    if (!text) return [];
+    
+    // Regular expression to find {{variables}}
+    const regex = /{{([^{}]*)}}/g;
+    let lastIndex = 0;
+    const parts = [];
+    let match;
+    
+    // Find all matches and create array of text and highlighted variables
+    while ((match = regex.exec(text)) !== null) {
+      // Add text before the variable
+      if (match.index > lastIndex) {
+        parts.push(text.substring(lastIndex, match.index));
+      }
+      
+      // Add the highlighted variable
+      parts.push(
+        <span className="preview-variable" key={match.index}>
+          {match[0]}
+        </span>
+      );
+      
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Add any remaining text after the last variable
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
+    }
+    
+    return parts;
+  };
+
+  // Update preview when content changes
+  useEffect(() => {
+    setPreviewContent(highlightVariables(content));
+  }, [content]);
+
+  return (
+    <div>
+      <DynamicTextEditor
+        value={content}
+        onChange={setContent}
+        suggestions={[...]}
+        // ...other props
+      />
+      
+      <div className="preview-section">
+        <h3>Live Preview</h3>
+        <div className="preview-content">
+          {previewContent}
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+CSS to style the preview:
+
+```css
+.preview-section {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background-color: #f9f9fb;
+  border-radius: 8px;
+  border: 1px solid #e8e8ed;
+}
+
+.preview-content {
+  padding: 1rem;
+  background-color: white;
+  border-radius: 6px;
+  border: 1px solid #eaeaef;
+  min-height: 4rem;
+  line-height: 1.5;
+  font-size: 1.1rem;
+}
+
+.preview-variable {
+  display: inline-block;
+  background-color: rgba(0, 102, 204, 0.08);
+  color: #0066cc;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 102, 204, 0.2);
+  font-weight: 500;
+}
+```
+
+The preview section will update in real-time as users type in the editor, with variables highlighted for better visibility.
+
 
